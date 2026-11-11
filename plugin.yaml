@@ -1,0 +1,15 @@
+name: pilot
+label: Pilot
+kind: standalone
+version: 0.1.0
+author: Lakshaya Sharma (LangerSword)
+homepage: https://github.com/LangerSword/hermes-pilot
+description: >
+  Give Hermes hands on a real interactive terminal. Pilot runs commands inside
+  a private tmux server, so the agent can drive programs that need a TTY —
+  ssh, vim, htop, fzf, package installers, REPLs — by typing keys and reading
+  the screen, with state that survives across tool calls. The same pane can be
+  attached and taken over by the human at any time.
+requires_hermes: ">=0.22.0"
+provides_tools:
+  - pilot
