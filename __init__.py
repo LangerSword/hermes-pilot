@@ -14,33 +14,31 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def register(ctx) -> None:
     """Plugin entry point, called by the Hermes plugin loader."""
     from .pilot_cli import handle_cli, handle_slash, setup_cli
     from .pilot_env import PilotTerminalProvider
-    from .pilot_tools import TOOL_NAME, TOOLSET, handle, tool_schema
+    from .pilot_toolset import TOOLSET, TOOL_SPECS
 
     # The regular `terminal` tool can run inside Pilot: persistent cwd/env, a
     # real TTY, and interactive commands left attachable instead of killed.
     ctx.register_terminal_environment_provider(PilotTerminalProvider())
 
-    def tool_handler(args: dict, **_kw) -> str:
-        return handle(args or {})
+    for spec in TOOL_SPECS:
+        def tool_handler(args: dict, _run=spec["handler"], **_kw) -> str:
+            return _run(args or {})
 
-    ctx.register_tool(
-        name=TOOL_NAME,
-        toolset=TOOLSET,
-        schema=tool_schema(),
-        handler=tool_handler,
-        description=(
-            "Drive a real interactive terminal: ssh, vim, htop, fzf, installers and REPLs, "
-            "by typing keys and reading the screen."
-        ),
-        emoji="🕹️",
-    )
+        ctx.register_tool(
+            name=spec["name"],
+            toolset=TOOLSET,
+            schema=spec["schema"],
+            handler=tool_handler,
+            description=spec["description"],
+            emoji=spec.get("emoji", "🕹️"),
+        )
 
     ctx.register_command(
         "pilot",

@@ -205,10 +205,12 @@ class RegistrationTest(unittest.TestCase):
     def test_register_wires_public_surface(self):
         ctx = FakeCtx()
         import hermes_pilot
+        from hermes_pilot.pilot_toolset import TOOL_NAMES
 
         hermes_pilot.register(ctx)
-        self.assertEqual([t["name"] for t in ctx.tools], ["pilot"])
-        self.assertEqual(ctx.tools[0]["toolset"], "pilot")
+        self.assertEqual([t["name"] for t in ctx.tools], TOOL_NAMES)
+        self.assertGreaterEqual(len(ctx.tools), 20)
+        self.assertTrue(all(t["toolset"] == "pilot" for t in ctx.tools))
         self.assertEqual(ctx.commands, ["pilot"])
         self.assertEqual(ctx.cli_commands, ["pilot"])
 

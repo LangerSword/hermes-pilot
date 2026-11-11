@@ -39,16 +39,37 @@ Five decisions carry it:
 - **argv, not interpolation**: commands go through `sh -c` as argv, named keys are allow-listed, and session
   names match `[A-Za-z0-9_-]{1,32}`.
 
-## Tool surface
+## Tools
 
-| action | behavior |
+The suite registers **24 tools**. `pilot` keeps the full open/screen/type/wait loop; the focused tools are
+cheaper to call and add operations the single tool never had.
+
+| tool | what it does |
 |---|---|
-| `open` | start a command in a new pane (`command`, `name`, `cwd`, `env`, `cols`, `rows`, `wait_for`); returns the first screen and the attach command |
-| `screen` | read the pane as plain text, visible screen plus scrollback |
-| `type` | type literal `text` and named `keys` (`Escape`, `C-c`, `Up`, `Tab`, ...), Return by default |
-| `wait` | poll until a regex matches, the pane goes quiet, or timeout |
-| `list` / `status` | sessions with pid, command, size, dead state, pane exit status |
-| `attach` / `close` | print the human attach command, or kill one session |
+| `pilot` | the full loop: open, screen, type, wait, list, status, attach, close |
+| `pilot_open` | open a program in a new persistent pane |
+| `pilot_screen` | read the visible screen plus scrollback |
+| `pilot_type` | type literal text and named keys |
+| `pilot_wait` | wait for a regex, or for the pane to settle |
+| `pilot_list` | list sessions with pid, command, size, dead state, exit status |
+| `pilot_status` | status for one session |
+| `pilot_attach` | print the human attach command |
+| `pilot_close` | close one session |
+| `pilot_killall` | close every session |
+| `pilot_run` | one-shot command in a fresh TTY; output, exit status, duration |
+| `pilot_expect` | scripted wait/type/keys/sleep sequence with a step trace |
+| `pilot_search` | regex search the screen and scrollback with context |
+| `pilot_diff` | snapshot a pane, then diff the current screen |
+| `pilot_log` | record a pane to a log file, stop, or read the tail |
+| `pilot_signal` | send Ctrl-C, Ctrl-\\ or Ctrl-Z |
+| `pilot_resize` | resize the pane |
+| `pilot_rename` | rename a session |
+| `pilot_health` | tmux, socket, session counts and limits |
+| `pilot_upload` | write a local file into a shell session over base64 |
+| `pilot_download` | read a remote file out through base64 |
+| `pilot_send` | type text/keys and optionally wait in one call |
+| `pilot_snapshot` | save the current screen to a text file |
+| `pilot_cleanup` | reap finished sessions past a TTL |
 
 State survives between calls: a REPL keeps its variables, `ssh` keeps its shell, `vim` keeps its buffer.
 
@@ -88,9 +109,9 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 
 | check | command | result |
 |---|---|---|
-| unit tests | `python3 -m unittest discover -s tests` | 33 tests, OK, against real tmux |
+| unit tests | `python3 -m unittest discover -s tests` | 46 tests, OK, against real tmux |
 | admission | `hermes plugins validate .` | validation passed |
-| runtime | `hermes plugins doctor .` | 1 tool registered, 0 hooks |
+| runtime | `hermes plugins doctor .` | 24 tools registered, 0 hooks |
 
 The suite covers stdin, REPL, vim keystrokes, fzf, exit status and dead-pane reaping. `scripts/demo.py`
 runs the same flow on camera.
@@ -106,15 +127,17 @@ runs the same flow on camera.
 ## Layout
 
 ```
-plugin.yaml        manifest (one tool)
-__init__.py        register(ctx): tool, terminal backend, /pilot, hermes pilot
+plugin.yaml        manifest (24 tools)
+__init__.py        register(ctx): tools, terminal backend, /pilot, hermes pilot
 pilot_tmux.py      tmux layer: open, screen, type, wait, status, close, attach
 pilot_env.py       terminal backend: persistent shell, markers, busy guard, timeout handoff
-pilot_tools.py     the pilot tool schema and JSON handlers
+pilot_tools.py     legacy pilot tool schema and JSON handlers
+pilot_toolset.py   the 24-tool suite: schemas, wrappers, dispatch
+pilot_features.py  run_once, expect, search, diff, log, transfer, health
 pilot_cli.py       hermes pilot and /pilot
-tests/             33 stdlib unittest cases (skip cleanly without tmux)
+tests/             46 stdlib unittest cases (skip cleanly without tmux)
 scripts/demo.py    recorded demo: stdin, REPL, vim, fzf, htop
 art/media/         README media: demo gif, site shot, whiteboard
 ```
 
-MIT, Lakshaya Sharma ([@LangerSword](https://github.com/LangerSword)).
+MIT, Lakshaya Sharma ([@LangerSword](https://github.com/LangerSword)) · v0.3.0.
