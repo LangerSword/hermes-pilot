@@ -183,14 +183,14 @@ def main() -> int:
     for idx, img in enumerate(seq):
         img.save(FRAMES / f"f{idx:04d}.png")
 
-    mp4 = OUT / "pilot-vim.mp4"
+    mp4 = OUT / "02-keystrokes.mp4"
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-framerate", "12",
          "-i", str(FRAMES / "f%04d.png"), "-c:v", "libx264", "-pix_fmt", "yuv420p",
          "-crf", "20", "-movflags", "+faststart", str(mp4)],
         check=True,
     )
-    gif = OUT / "pilot-vim.gif"
+    gif = OUT / "02-keystrokes.gif"
     subprocess.run(
         ["magick", "-delay", "8", "-loop", "0", str(FRAMES / "f*.png"),
          "-layers", "Optimize", "-colors", "128", str(gif)],

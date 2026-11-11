@@ -51,7 +51,7 @@ window.addEventListener('load', () => {
 
 
 def main() -> int:
-    for html_path in sorted(SRC.glob("pilot-*.html")):
+    for html_path in sorted(SRC.glob("[0-9][0-9]-*.html")) + sorted(SRC.glob("icon-*.html")):
         m = re.search(r"-(\d+)x(\d+)\.html$", html_path.name)
         if not m:
             continue
