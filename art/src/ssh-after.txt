@@ -1,8 +1,0 @@
-Warning: Permanently added &#x27;[127.0.0.1]:2222&#x27; (ED25519) to the list of known hosts.
-[lakshaya@lakshaya ~]$ mkdir -p ~/pilot-demo &amp;&amp; printf &#x27;porrt = 8080\n&#x27; &gt; ~/pilot-demo/app.conf
-[lakshaya@lakshaya ~]$ cat ~/pilot-demo/app.conf
-porrt = 8080
-[lakshaya@lakshaya ~]$ vim -Nu NONE -n ~/pilot-demo/app.conf
-[lakshaya@lakshaya ~]$ cat ~/pilot-demo/app.conf
-port = 8080
-[lakshaya@lakshaya ~]$

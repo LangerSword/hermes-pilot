@@ -16,17 +16,17 @@ alive across tool calls. You can attach to the same pane and take over at any ti
 
 If this is useful, a star helps the next person find it.
 
-![Pilot](art/out/00-hero-1600x900.png)
+| the plugin, recorded | the page, hosted |
+|---|---|
+| ![Pilot typing in a real tmux pane](art/media/demo.gif) | [![Pilot site on GitHub Pages](art/media/site.png)](https://langersword.github.io/hermes-portal/) |
+| **recorded:** real keystrokes, 900×506 | **hosted:** GitHub Pages, 1600×900 |
 
 ## How it works
 
-```
-tool call ──▶ pilot ──▶ tmux -L hermes-pilot (one session per task)
-                         ├─ screen  capture-pane -p -J ──▶ text
-                         ├─ type    literal text + allowed keys
-                         └─ wait    regex / quiet / timeout
-human ───── attach ──────┘
-```
+![How Pilot works: a coloured whiteboard sketch](art/media/whiteboard.png)
+
+*Agent calls pilot, pilot drives a private tmux pane, the screen comes back as text, and you can attach
+to the same pane at any time.*
 
 Five decisions carry it:
 
@@ -92,8 +92,8 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 | admission | `hermes plugins validate .` | validation passed |
 | runtime | `hermes plugins doctor .` | 1 tool registered, 0 hooks |
 
-Recorded runs, including stdin, REPL, vim, fzf and htop: [DEMO.md](DEMO.md). Two-machine SSH runbook:
-[DEMO-SSH.md](DEMO-SSH.md).
+The suite covers stdin, REPL, vim keystrokes, fzf, exit status and dead-pane reaping. `scripts/demo.py`
+runs the same flow on camera.
 
 ## Stack
 
@@ -114,6 +114,7 @@ pilot_tools.py     the pilot tool schema and JSON handlers
 pilot_cli.py       hermes pilot and /pilot
 tests/             33 stdlib unittest cases (skip cleanly without tmux)
 scripts/demo.py    recorded demo: stdin, REPL, vim, fzf, htop
+art/media/         README media: demo gif, site shot, whiteboard
 ```
 
 MIT, Lakshaya Sharma ([@LangerSword](https://github.com/LangerSword)).
