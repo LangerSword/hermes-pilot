@@ -10,7 +10,7 @@ Pilot gives the agent a real terminal: a private tmux server, one session per ta
 reads the screen as text, types literal text and named keys, waits for a pattern, and keeps the session
 alive across tool calls. You can attach to the same pane and take over at any time.
 
-**demo:** [60s video](https://x.com/langersword/status/2120637238585573737) ·
+**demo:** [video](https://x.com/langersword/status/2120637238585573737) ·
 **site:** [langersword.github.io/hermes-portal](https://langersword.github.io/hermes-portal/) ·
 **catalog:** [PR #153787](https://github.com/NousResearch/hermes-agent/pull/153787)
 
@@ -74,8 +74,8 @@ hermes pilot attach live1    # Ctrl-b d to detach
 hermes pilot killall
 ```
 
-Needs `tmux` 3.x on PATH. No Python dependencies. Hooks load immediately; the `pilot` tool appears in the
-next session. Backend switching needs a restart and `plugins.isolation: in_process` (the default).
+Needs `tmux` 3.x on PATH. No Python dependencies. The `pilot` tool appears in the next session.
+Backend switching needs a restart and `plugins.isolation: in_process` (the default).
 
 ## Limits
 
