@@ -10,3 +10,4 @@ art/src/qa-*.html
 art/src/pilot-*.html
 art/src/[0-9][0-9]-*.html
 art/src/icon-*.html
+art/.~lock.*#
