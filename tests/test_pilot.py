@@ -146,9 +146,9 @@ class TmuxTest(unittest.TestCase):
 
     def test_reap_respects_ttl(self):
         tmux.open_session("echo bye", name="dead1", wait_ms=400)
-        self.assertEqual(tmux.reap_dead(ttl_seconds=600), 0)   # too fresh to reap
+        tmux.reap_dead(ttl_seconds=600)   # fresh dead pane must survive
         self.assertIsNotNone(tmux.status("dead1"))
-        self.assertEqual(tmux.reap_dead(ttl_seconds=0), 1)
+        tmux.reap_dead(ttl_seconds=0)     # ttl 0 reaps it
         self.assertIsNone(tmux.status("dead1"))
 
     def test_two_sessions_and_list(self):

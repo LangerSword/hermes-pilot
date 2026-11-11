@@ -89,8 +89,14 @@ class PilotEnvironment:
         return info is not None and not info.dead
 
     def _start(self) -> None:
-        if tmux.status(self.name) is not None:
-            return
+        info = tmux.status(self.name)
+        if info is not None:
+            if not info.dead:
+                return
+            # A finished pane from an earlier process can share this task's
+            # stable session name. Reusing it would type into a dead shell, so
+            # replace it instead.
+            tmux.close(self.name, missing_ok=True)
         self._busy_marker = ""
         tmux.open_session(
             "bash -i",

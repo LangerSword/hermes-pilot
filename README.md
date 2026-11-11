@@ -109,7 +109,7 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 
 | check | command | result |
 |---|---|---|
-| unit tests | `python3 -m unittest discover -s tests` | 46 tests, OK, against real tmux |
+| unit tests | `python3 -m unittest discover -s tests` | 47 tests, OK, against real tmux |
 | admission | `hermes plugins validate .` | validation passed |
 | runtime | `hermes plugins doctor .` | 24 tools registered, 0 hooks |
 
@@ -135,7 +135,7 @@ pilot_tools.py     legacy pilot tool schema and JSON handlers
 pilot_toolset.py   the 24-tool suite: schemas, wrappers, dispatch
 pilot_features.py  run_once, expect, search, diff, log, transfer, health
 pilot_cli.py       hermes pilot and /pilot
-tests/             46 stdlib unittest cases (skip cleanly without tmux)
+tests/             47 stdlib unittest cases (skip cleanly without tmux)
 scripts/demo.py    recorded demo: stdin, REPL, vim, fzf, htop
 art/media/         README media: demo gif, site shot, whiteboard
 ```

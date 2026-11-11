@@ -144,6 +144,16 @@ class ExecuteTest(unittest.TestCase):
         self.assertIn("back", result["output"])
         self.assertNotIn("1", result["output"])
 
+    def test_dead_session_with_same_name_is_replaced(self):
+        # A stale finished pane can share the task's stable session name after
+        # a Hermes restart; the backend must replace it, not type into it.
+        self.env.cleanup()
+        tmux.open_session("echo stale; exit 7", name=self.env.name, wait_ms=500)
+        self.assertTrue(tmux.status(self.env.name).dead)
+        result = self.run_cmd("echo fresh-shell")
+        self.assertEqual(result["returncode"], 0)
+        self.assertIn("fresh-shell", result["output"])
+
 
 @unittest.skipUnless(HAVE_TMUX, "tmux not installed")
 class ReuseTest(unittest.TestCase):
