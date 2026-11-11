@@ -310,7 +310,12 @@ def wait(
                 "elapsed": round(time.monotonic() - started, 2),
                 "screen": current,
             }
-        if compiled is None and (time.monotonic() - stable_since) * 1000 >= max(100, quiet_ms):
+        # An empty pane is not "settled" — it means the program has not painted yet.
+        if (
+            compiled is None
+            and current.strip()
+            and (time.monotonic() - stable_since) * 1000 >= max(100, quiet_ms)
+        ):
             return {
                 "name": name,
                 "matched": False,

@@ -2,6 +2,8 @@
 
 **Hermes can finally use programs that need a TTY.**
 
+![Pilot](art/out/pilot-hero-1600x900.png)
+
 The terminal tool runs one command through a pipe. Anything that asks a question, draws a full screen,
 or waits for a keystroke dies there: `ssh` logins, `vim`, `htop`, `fzf`, `less`, package installers,
 `gh auth login`, REPLs. The workaround is `-y` flags, `yes |`, `expect`, `script -qec` — or giving up.

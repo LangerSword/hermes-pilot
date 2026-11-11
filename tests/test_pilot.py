@@ -129,6 +129,11 @@ class TmuxTest(unittest.TestCase):
         self.assertIn("BYE_NOW", captured)
         self.assertNotIn("Pane is dead", captured)
 
+    def test_wait_quiet_waits_for_first_paint(self):
+        # A pane that prints nothing for 400ms must not report "stable empty".
+        tmux.open_session("sleep 0.4; echo LATE_MARKER", name="late", wait_ms=2500)
+        self.assertIn("LATE_MARKER", tmux.screen("late"))
+
     def test_wait_quiet(self):
         tmux.open_session("bash --norc -i", name="q1", wait_ms=400)
         tmux.send("q1", text="echo done")

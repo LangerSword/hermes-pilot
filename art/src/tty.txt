@@ -1,0 +1,23 @@
+    0[||        10.0%]   4[|||||     27.3%]   8[||||       20.0%] 12[||||||||   40.0%]
+    1[|||||     27.3%]   5[|||||||   36.4%]   9[||         11.1%] 13[|||||      25.0%]
+    2[|||||     30.0%]   6[||        10.0%]  10[|||||      27.3%] 14[|||||      27.3%]
+    3[||        10.0%]   7[||||||||||72.7%]  11[||||||||   44.4%] 15[||||||||   50.0%]
+  Mem[|||||||||||||||||||||||||12.5G/14.9G] Tasks: 157, 1632 thr, 289 kthr; 2 running
+  Swp[|||||||||||||||||||||||||3.45G/4.00G] Load average: 3.56 2.95 2.83
+                                            Uptime: 1 day, 14:39:35
+
+  [Main] [I/O]
+   PID USER       PRI  NI  VIRT   RES  PRIV S  CPU%▽MEM%   TIME+  Command
+721301 lakshaya    20   0 13568 11200  5680 R  99.4  0.1  0:00.19 htop
+152297 lakshaya    20   0 3502M  805M  611M S  39.8  5.3  1:15.63 /usr/lib/firefox/firef
+595844 lakshaya    20   0 17.6G  359M  261M S  39.8  2.4 19:00.59 /home/lakshaya/.hermes
+  1289 lakshaya    20   0 53.0G 91920     0 S  19.9  0.6  1h37:13 /home/lakshaya/.cache/
+ 21248 lakshaya    20   0 1356M  450M 87420 R  19.9  3.0  3h41:25 Hyprland --watchdog-fd
+ 22261 lakshaya    20   0 13.3G 1621M  869M S  19.9 10.6 11:36.99 /usr/lib/firefox/firef
+ 22340 lakshaya    20   0 13.3G 1621M     0 S  19.9 10.6  3:18.19 /usr/lib/firefox/firef
+ 21292 lakshaya    20   0 4523M 1420M  952M S   9.9  9.3 45:14.13 qs -c end4-enhanced
+ 21345 lakshaya    20   0 4523M 1420M     0 S   9.9  9.3  0:08.10 qs -c end4-enhanced
+ 21401 lakshaya    20   0 4523M 1420M     0 S   9.9  9.3  0:03.67 qs -c end4-enhanced
+ 21628 lakshaya    20   0 4523M 1420M     0 S   9.9  9.3  2h15:58 qs -c end4-enhanced
+ 22320 lakshaya    20   0 13.3G 1621M     0 S   9.9 10.6 16:29.05 /usr/lib/firefox/firef
+F1Help  F2Setup F3SearchF4FilterF5Tree  F6SortByF7Nice -F8Nice +F9Kill  F10Quit
