@@ -14,13 +14,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def register(ctx) -> None:
     """Plugin entry point, called by the Hermes plugin loader."""
     from .pilot_cli import handle_cli, handle_slash, setup_cli
+    from .pilot_env import PilotTerminalProvider
     from .pilot_tools import TOOL_NAME, TOOLSET, handle, tool_schema
+
+    # The regular `terminal` tool can run inside Pilot: persistent cwd/env, a
+    # real TTY, and interactive commands left attachable instead of killed.
+    ctx.register_terminal_environment_provider(PilotTerminalProvider())
 
     def tool_handler(args: dict, **_kw) -> str:
         return handle(args or {})

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from typing import Any
 
@@ -25,12 +26,44 @@ def _table(sessions: list[tmux.SessionInfo]) -> str:
     return "\n".join(rows)
 
 
+def _run_hermes(argv: list[str]) -> str:
+    try:
+        proc = subprocess.run(["hermes", *argv], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return f"pilot: could not run `hermes {' '.join(argv)}`: {exc}"
+    out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+    return out or f"(exit {proc.returncode})"
+
+
+def backend_status() -> str:
+    """Report whether the normal terminal tool runs in Pilot."""
+    current = _run_hermes(["config", "get", "terminal.backend"])
+    return (
+        "pilot backend\n"
+        f"  terminal.backend : {current.splitlines()[0] if current else '(unset)'}\n"
+        f"  tmux             : {'found' if tmux.available() else 'missing'}\n"
+        "  on               : hermes pilot backend on\n"
+        "  off              : hermes pilot backend off"
+    )
+
+
+def _set_backend(value: str) -> str:
+    out = _run_hermes(["config", "set", "terminal.backend", value])
+    return (
+        f"{out}\n\nNew sessions use the {value} backend. If Hermes is already running, restart it "
+        "once (hermes gateway restart, from a terminal outside the agent) so the plugin's backend "
+        "is registered in that process. This session keeps the backend it started with."
+    )
+
+
 def handle_slash(raw_args: str = "") -> str:
     args = (raw_args or "").strip().split()
     action = args[0].lower() if args else "list"
     sessions = tmux.list_sessions()
     if action in {"list", "ls"}:
         return _table(sessions)
+    if action == "backend":
+        return backend_status()
     if action in {"screen", "show"}:
         if len(args) < 2:
             return "usage: /pilot screen <name>"
@@ -47,7 +80,7 @@ def handle_slash(raw_args: str = "") -> str:
             return "usage: /pilot kill <name>"
         ok = tmux.close(args[1])
         return f"pilot: closed {args[1]}" if ok else f"pilot: no session {args[1]!r}"
-    return "usage: /pilot [list|screen <name>|attach <name>|kill <name>]"
+    return "usage: /pilot [list|screen <name>|attach <name>|kill <name>|backend]"
 
 
 def setup_cli(parser: argparse.ArgumentParser) -> None:
@@ -55,10 +88,10 @@ def setup_cli(parser: argparse.ArgumentParser) -> None:
         "action",
         nargs="?",
         default="list",
-        choices=["list", "screen", "attach", "kill", "killall"],
-        help="list (default), screen, attach, kill, killall",
+        choices=["list", "screen", "attach", "kill", "killall", "backend"],
+        help="list (default), screen, attach, kill, killall, backend",
     )
-    parser.add_argument("name", nargs="?", default="", help="Session name")
+    parser.add_argument("name", nargs="?", default="", help="Session name, or on/off/status for backend")
     parser.add_argument("--lines", type=int, default=60, help="Scrollback lines for screen")
     parser.set_defaults(func=handle_cli)
 
@@ -67,8 +100,19 @@ def handle_cli(args: Any) -> int:
     action = str(getattr(args, "action", "list") or "list").lower()
     name = str(getattr(args, "name", "") or "")
 
+    if action == "backend":
+        choice = (name or "status").lower()
+        if choice in {"on", "pilot", "enable"}:
+            print(_set_backend("pilot"))
+            return 0
+        if choice in {"off", "local", "disable"}:
+            print(_set_backend("local"))
+            return 0
+        print(backend_status())
+        return 0
+
     if not tmux.available():
-        print("pilot: tmux is not installed")
+        print("pilot: tmux is not installed (needed for sessions and the terminal backend)")
         return 1
 
     if action == "list":

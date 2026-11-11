@@ -37,6 +37,7 @@ class FakeCtx:
         self.tools: list[dict] = []
         self.commands: list[str] = []
         self.cli_commands: list[str] = []
+        self.providers: list[object] = []
 
     def register_tool(self, **kwargs):
         self.tools.append(kwargs)
@@ -46,6 +47,9 @@ class FakeCtx:
 
     def register_cli_command(self, name, *_a, **_kw):
         self.cli_commands.append(name)
+
+    def register_terminal_environment_provider(self, provider):
+        self.providers.append(provider)
 
 
 class PureTest(unittest.TestCase):
