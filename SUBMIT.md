@@ -8,8 +8,8 @@ polish and creativity. Accepted entries go to the Hermes Marketplace.
 | step | state |
 |---|---|
 | 1. Catalog PR | **open / mergeable** — https://github.com/NousResearch/hermes-agent/pull/153787 (`plugin-catalog/pilot.yaml`, pinned at `db6da49`) |
-| 2. Demo video on X, tag @NousResearch | **posted** — https://x.com/langersword/status/2120594050629972220 |
-| 3. Typeform with both links | **SUBMITTED** — “Submission Received”, receipt: `art/out/submission-received.png` |
+| 2. Demo video on X, tag @NousResearch | **posted twice** — original https://x.com/langersword/status/2120594050629972220; latest cut https://x.com/langersword/status/2120637238585573737 |
+| 3. Typeform with both links | **original submitted before deadline** (receipt: `art/out/submission-received.png`); latest entry with the new X link submitted manually after 22:00 UTC close — no new receipt saved |
 
 ## X post (attach `art/out/02-keystrokes.mp4`)
 
