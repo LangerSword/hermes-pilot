@@ -7,9 +7,9 @@ polish and creativity. Accepted entries go to the Hermes Marketplace.
 
 | step | state |
 |---|---|
-| 1. Catalog PR | **open** — https://github.com/NousResearch/hermes-agent/pull/153787 (`plugin-catalog/pilot.yaml`, pinned at `db6da49`) |
-| 2. Demo video on X, tag @NousResearch | **to post** — video: `art/out/02-keystrokes.mp4` (7.7s) |
-| 3. Typeform with both links | **waiting on the X URL** — https://form.typeform.com/to/FwJLvOln |
+| 1. Catalog PR | **open / mergeable** — https://github.com/NousResearch/hermes-agent/pull/153787 (`plugin-catalog/pilot.yaml`, pinned at `db6da49`) |
+| 2. Demo video on X, tag @NousResearch | **posted** — https://x.com/langersword/status/2120594050629972220 |
+| 3. Typeform with both links | **SUBMITTED** — “Submission Received”, receipt: `art/out/submission-received.png` |
 
 ## X post (attach `art/out/02-keystrokes.mp4`)
 
