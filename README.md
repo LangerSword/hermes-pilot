@@ -30,7 +30,8 @@ to the same pane at any time.*
 
 Five decisions carry it:
 
-- **Private tmux server** (`-L hermes-pilot`): your own tmux sessions are never listed or touched.
+- **Profile-scoped tmux server** (`-L hermes-pilot-<id>`): your own tmux sessions are never listed or touched,
+  and another Hermes profile gets a different socket.
 - **`remain-on-exit` before the pane is created**: a command that exits instantly still leaves its final
   screen and `#{pane_dead_status}` to read.
 - **Text, not ANSI**: `capture-pane -p -J` returns the screen a human sees, with no escape parser.

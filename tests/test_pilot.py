@@ -73,7 +73,10 @@ class PureTest(unittest.TestCase):
         self.assertTrue(out.endswith("[screen truncated]"))
 
     def test_attach_command_is_private(self):
-        self.assertEqual(cli and tmux.attach_command("s1"), "tmux -L hermes-pilot attach -t s1")
+        self.assertEqual(
+            cli and tmux.attach_command("s1"),
+            f"tmux -L {tmux.SOCKET} attach -t s1",
+        )
 
     def test_minimal_env_excludes_secrets(self):
         os.environ["PILOT_TEST_SECRET"] = "leak-me"
@@ -233,7 +236,7 @@ class ToolTest(unittest.TestCase):
     def test_open_type_wait_close(self):
         opened = self.call(action="open", command="bash --norc -i", name="tool1", wait_ms=500)
         self.assertTrue(opened["ok"])
-        self.assertIn("tmux -L hermes-pilot attach -t tool1", opened["attach"])
+        self.assertIn(f"tmux -L {tmux.SOCKET} attach -t tool1", opened["attach"])
         typed = self.call(action="type", name="tool1", text="echo TOOL_MARKER")
         self.assertTrue(typed["ok"])
         waited = self.call(action="wait", name="tool1", pattern="TOOL_MARKER", timeout=8)

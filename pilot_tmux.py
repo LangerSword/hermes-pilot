@@ -2,14 +2,15 @@
 
 The agent gets a real TTY (not a pipe): curses programs render, `ssh` prompts,
 `vim` takes keystrokes, a REPL keeps its state between tool calls. Every
-session lives on a private tmux server (``tmux -L hermes-pilot``), so Pilot
-never touches the user's own tmux sessions.
+session lives on a private tmux server scoped to the active Hermes profile, so
+Pilot never touches the user's own tmux sessions.
 
 Stdlib only; tmux must be installed. Nothing here imports Hermes internals.
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
@@ -18,7 +19,19 @@ import time
 from dataclasses import dataclass
 from typing import Iterable
 
-SOCKET = "hermes-pilot"
+
+def _profile_socket() -> str:
+    try:
+        from hermes_constants import get_hermes_home
+
+        home = str(get_hermes_home())
+    except Exception:
+        home = os.environ.get("HERMES_HOME") or os.path.expanduser("~/.hermes")
+    digest = hashlib.sha256(os.path.abspath(home).encode()).hexdigest()[:8]
+    return f"hermes-pilot-{digest}"
+
+
+SOCKET = _profile_socket()
 DEFAULT_COLS = 120
 DEFAULT_ROWS = 36
 MAX_SCREEN_CHARS = 20_000
