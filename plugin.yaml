@@ -1,7 +1,7 @@
 name: pilot
 label: Pilot
 kind: standalone
-version: 0.3.0
+version: 0.3.1
 author: Lakshaya Sharma (LangerSword)
 homepage: https://github.com/LangerSword/hermes-pilot
 description: >
@@ -11,6 +11,8 @@ description: >
   the screen, with state that survives across tool calls. The same pane can be
   attached and taken over by the human at any time.
 requires_hermes: ">=0.22.0"
+provides_hooks:
+  - pre_tool_call
 provides_tools:
   - pilot
   - pilot_open

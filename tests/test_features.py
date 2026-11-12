@@ -31,11 +31,17 @@ HAVE_TMUX = shutil.which("tmux") is not None
 
 @unittest.skipUnless(HAVE_TMUX, "tmux not installed")
 class FeatureTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(dir="/tmp")
+        feat._DATA_ROOT = Path(self._tmp.name)
+
     def tearDown(self):
         try:
             tmux.close_all()
         except Exception:
             pass
+        feat._DATA_ROOT = None
+        self._tmp.cleanup()
 
     def bash(self, name: str = "f1", cwd: str = "") -> tmux.SessionInfo:
         return tmux.open_session("bash --norc -i", name=name, cwd=cwd, wait_ms=400)
@@ -121,17 +127,40 @@ class FeatureTest(unittest.TestCase):
         self.assertIn("tmux", result["tmux"])
 
     def test_upload_and_download(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            self.bash("file1", cwd=str(root))
-            source = root / "source.txt"
-            source.write_text("hello from pilot\nsecond line\n")
-            uploaded = feat.upload_file("file1", str(source), "remote.txt")
-            self.assertTrue(uploaded["ok"], uploaded)
-            target = root / "roundtrip.txt"
-            downloaded = feat.download_file("file1", "remote.txt", str(target))
-            self.assertTrue(downloaded["ok"])
-            self.assertEqual(target.read_bytes(), source.read_bytes())
+        root = feat.data_dir()
+        self.bash("file1", cwd=str(root))
+        source = root / "source.txt"
+        source.write_text("hello from pilot\nsecond line\n")
+        uploaded = feat.upload_file("file1", str(source), "remote.txt")
+        self.assertTrue(uploaded["ok"], uploaded)
+        target = root / "roundtrip.txt"
+        downloaded = feat.download_file("file1", "remote.txt", str(target))
+        self.assertTrue(downloaded["ok"])
+        self.assertEqual(target.read_bytes(), source.read_bytes())
+
+    def test_upload_refuses_credential_file(self):
+        root = feat.data_dir()
+        self.bash("file2", cwd=str(root))
+        source = root / ".env"
+        source.write_text("SECRET=1\n")
+        with self.assertRaises(tmux.PilotError):
+            feat.upload_file("file2", str(source), "remote.env")
+
+    def test_snapshot_refuses_path_outside_data(self):
+        self.bash("snap2")
+        handlers = {spec["name"]: spec["handler"] for spec in toolset.TOOL_SPECS}
+        denied = json.loads(handlers["pilot_snapshot"]({"name": "snap2", "path": "/tmp/pilot-escape.txt"}))
+        self.assertFalse(denied["ok"])
+        self.assertIn("escapes", denied["error"])
+
+    def test_download_refuses_path_outside_data(self):
+        root = feat.data_dir()
+        self.bash("file3", cwd=str(root))
+        source = root / "in.txt"
+        source.write_text("payload\n")
+        self.assertTrue(feat.upload_file("file3", str(source), "in.txt")["ok"])
+        with self.assertRaises(tmux.PilotError):
+            feat.download_file("file3", "in.txt", "/tmp/pilot-escape.txt")
 
     def test_cleanup_reaps_dead(self):
         tmux.open_session("echo bye; exit 0", name="deadx", wait_ms=500)
@@ -158,11 +187,10 @@ class FeatureTest(unittest.TestCase):
         self.assertIn("TOOLRUN", run["output"])
         sent = json.loads(handlers["pilot_send"]({"name": "wrap1", "text": "echo SENT_MARK", "wait_for": "SENT_MARK"}))
         self.assertTrue(sent["matched"])
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "screen.txt"
-            saved = json.loads(handlers["pilot_snapshot"]({"name": "wrap1", "path": str(path)}))
-            self.assertTrue(saved["ok"])
-            self.assertIn("SENT_MARK", path.read_text())
+        path = feat.data_dir() / "screen.txt"
+        saved = json.loads(handlers["pilot_snapshot"]({"name": "wrap1", "path": str(path)}))
+        self.assertTrue(saved["ok"])
+        self.assertIn("SENT_MARK", path.read_text())
         health = json.loads(handlers["pilot_health"]({}))
         self.assertTrue(health["ok"])
         closed = json.loads(handlers["pilot_close"]({"name": "wrap1"}))

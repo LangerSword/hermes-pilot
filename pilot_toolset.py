@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import difflib
 import json
-from pathlib import Path
 from typing import Any, Callable
 
 from . import pilot_features as feat
@@ -274,7 +273,7 @@ def _send(args: dict) -> dict:
 def _snapshot(args: dict) -> dict:
     name = str(args.get("name") or "")
     text = tmux.screen(name, lines=int(args.get("lines") or 500))
-    dest = Path(str(args.get("path") or f"pilot-{name}.txt")).expanduser()
+    dest = feat.safe_path(str(args.get("path") or ""), f"pilot-{name}.txt")
     dest.write_text(text + "\n", encoding="utf-8")
     return {
         "ok": True,

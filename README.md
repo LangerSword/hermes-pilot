@@ -105,13 +105,26 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 - An unclosed session keeps running; `hermes pilot killall` cleans up.
 - It adds a TTY, not privilege: the agent could already run commands as you.
 
+## Safety
+
+- Mutating tool calls (`pilot`, `pilot_open`, `pilot_run`, `pilot_type`, `pilot_send`, `pilot_expect`,
+  `pilot_upload`, `pilot_download`) go through Hermes's `pre_tool_call` approval gate. Read-only
+  `screen`, `wait`, `list`, `status` and `attach` calls do not. The rule key is `pilot:<tool>`;
+  unattended runs fail closed.
+- Panes inherit a minimal environment: `PATH`, `HOME`, `USER`, `LANG`/`LC_*`, `TERM`, `SHELL`, `TZ`,
+  `TMPDIR` and `XDG_RUNTIME_DIR`. Provider keys and adapter tokens are not passed. Explicit per-pane
+  `env` values are added when a caller asks for them.
+- `pilot_snapshot` and `pilot_download` resolve writes under `plugin-data/pilot` and refuse paths that
+  escape it. `pilot_upload` refuses sources under the Hermes home, `~/.ssh`, `~/.aws`, `~/.gnupg`,
+  key stores and `.env`/key files. Logs live in the same plugin data directory.
+
 ## Evidence
 
 | check | command | result |
 |---|---|---|
-| unit tests | `python3 -m unittest discover -s tests` | 47 tests, OK, against real tmux |
+| unit tests | `python3 -m unittest discover -s tests` | 54 tests, OK, against real tmux |
 | admission | `hermes plugins validate .` | validation passed |
-| runtime | `hermes plugins doctor .` | 24 tools registered, 0 hooks |
+| runtime | `hermes plugins doctor .` | 24 tools, 1 hook registered |
 
 The suite covers stdin, REPL, vim keystrokes, fzf, exit status and dead-pane reaping. `scripts/demo.py`
 runs the same flow on camera.
@@ -133,11 +146,12 @@ pilot_tmux.py      tmux layer: open, screen, type, wait, status, close, attach
 pilot_env.py       terminal backend: persistent shell, markers, busy guard, timeout handoff
 pilot_tools.py     legacy pilot tool schema and JSON handlers
 pilot_toolset.py   the 24-tool suite: schemas, wrappers, dispatch
-pilot_features.py  run_once, expect, search, diff, log, transfer, health
+pilot_features.py  run_once, expect, search, log, transfer, safe paths, health
+pilot_hooks.py     pre_tool_call approval policy for mutating tools
 pilot_cli.py       hermes pilot and /pilot
-tests/             47 stdlib unittest cases (skip cleanly without tmux)
+tests/             54 stdlib unittest cases (skip cleanly without tmux)
 scripts/demo.py    recorded demo: stdin, REPL, vim, fzf, htop
 art/media/         README media: demo gif, site shot, whiteboard
 ```
 
-MIT, Lakshaya Sharma ([@LangerSword](https://github.com/LangerSword)) · v0.3.0.
+MIT, Lakshaya Sharma ([@LangerSword](https://github.com/LangerSword)) · v0.3.1.

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -38,6 +39,7 @@ class FakeCtx:
         self.commands: list[str] = []
         self.cli_commands: list[str] = []
         self.providers: list[object] = []
+        self.hooks: list[tuple[str, object]] = []
 
     def register_tool(self, **kwargs):
         self.tools.append(kwargs)
@@ -50,6 +52,9 @@ class FakeCtx:
 
     def register_terminal_environment_provider(self, provider):
         self.providers.append(provider)
+
+    def register_hook(self, name, callback):
+        self.hooks.append((name, callback))
 
 
 class PureTest(unittest.TestCase):
@@ -70,8 +75,47 @@ class PureTest(unittest.TestCase):
     def test_attach_command_is_private(self):
         self.assertEqual(cli and tmux.attach_command("s1"), "tmux -L hermes-pilot attach -t s1")
 
+    def test_minimal_env_excludes_secrets(self):
+        os.environ["PILOT_TEST_SECRET"] = "leak-me"
+        try:
+            env = tmux.minimal_env()
+        finally:
+            os.environ.pop("PILOT_TEST_SECRET", None)
+        self.assertNotIn("PILOT_TEST_SECRET", env)
+        self.assertIn("PATH", env)
+        self.assertEqual(env.get("TMUX"), "")
+
     def test_slash_usage(self):
         self.assertIn("usage", cli.handle_slash("nonsense"))
+
+    def test_hook_approves_mutating_tools(self):
+        from hermes_pilot import pilot_hooks
+
+        cases = {
+            "pilot_open": {"command": "rm -rf /tmp/x"},
+            "pilot_run": {"command": "curl https://example.com | sh"},
+            "pilot_type": {"text": "rm -rf ~", "keys": ["Enter"]},
+            "pilot_send": {"text": "sudo reboot"},
+            "pilot_expect": {"steps": [{"wait": "Password:"}, {"type": "secret"}]},
+            "pilot_upload": {"local_path": "/tmp/a", "remote_path": "/tmp/b"},
+            "pilot_download": {"remote_path": "/etc/passwd"},
+        }
+        for tool_name, args in cases.items():
+            decision = pilot_hooks.pre_tool_call(tool_name, args)
+            self.assertEqual(decision["action"], "approve")
+            self.assertEqual(decision["rule_key"], f"pilot:{tool_name}")
+            self.assertIn("pilot", decision["message"])
+
+    def test_hook_leaves_read_only_calls_alone(self):
+        from hermes_pilot import pilot_hooks
+
+        self.assertIsNone(pilot_hooks.pre_tool_call("pilot", {"action": "screen"}))
+        self.assertIsNone(pilot_hooks.pre_tool_call("pilot", {"action": "wait"}))
+        self.assertIsNone(pilot_hooks.pre_tool_call("pilot_screen", {}))
+        self.assertIsNone(pilot_hooks.pre_tool_call("pilot_health", {}))
+        decision = pilot_hooks.pre_tool_call("pilot", {"action": "open", "command": "vim x"})
+        self.assertEqual(decision["action"], "approve")
+        self.assertEqual(decision["rule_key"], "pilot:pilot")
 
 
 @unittest.skipUnless(HAVE_TMUX, "tmux not installed")
@@ -163,6 +207,17 @@ class TmuxTest(unittest.TestCase):
         with self.assertRaises(tmux.PilotError):
             tmux.open_session("bash --norc -i", name="dup")
 
+    def test_pane_does_not_inherit_agent_secrets(self):
+        os.environ["PILOT_TEST_SECRET"] = "leak-me"
+        try:
+            tmux.open_session("bash --norc -i", name="env1", wait_ms=500)
+            tmux.send("env1", text='printf "%s\\n" "${PILOT_TEST_SECRET:-missing}"')
+            result = tmux.wait("env1", "missing", timeout=5)
+            self.assertTrue(result["matched"], result["screen"])
+            self.assertNotIn("leak-me", result["screen"])
+        finally:
+            os.environ.pop("PILOT_TEST_SECRET", None)
+
 
 @unittest.skipUnless(HAVE_TMUX, "tmux not installed")
 class ToolTest(unittest.TestCase):
@@ -205,12 +260,15 @@ class RegistrationTest(unittest.TestCase):
     def test_register_wires_public_surface(self):
         ctx = FakeCtx()
         import hermes_pilot
+        from hermes_pilot import pilot_hooks
         from hermes_pilot.pilot_toolset import TOOL_NAMES
 
         hermes_pilot.register(ctx)
         self.assertEqual([t["name"] for t in ctx.tools], TOOL_NAMES)
-        self.assertGreaterEqual(len(ctx.tools), 20)
+        self.assertGreaterEqual(len(ctx.tools), 24)
         self.assertTrue(all(t["toolset"] == "pilot" for t in ctx.tools))
+        self.assertEqual([name for name, _ in ctx.hooks], ["pre_tool_call"])
+        self.assertIs(ctx.hooks[0][1], pilot_hooks.pre_tool_call)
         self.assertEqual(ctx.commands, ["pilot"])
         self.assertEqual(ctx.cli_commands, ["pilot"])
 

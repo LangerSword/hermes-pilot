@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
 import re
 import shlex
 import time
@@ -17,11 +18,79 @@ from typing import Any
 
 from . import pilot_tmux as tmux
 
-LOG_DIR = Path.home() / ".cache" / "hermes-pilot" / "logs"
+PLUGIN_NAME = "pilot"
+_DATA_ROOT: Path | None = None
 UPLOAD_LIMIT = 256 * 1024
 DOWNLOAD_LIMIT = 256 * 1024
 _LOG_PATHS: dict[str, Path] = {}
 _SHELLS = {"bash", "zsh", "sh", "fish", "dash", "ksh", "ssh"}
+_DENIED_NAMES = {
+    ".env", ".netrc", ".git-credentials", "credentials", "authorized_keys",
+    "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa",
+}
+_DENIED_SUFFIXES = {".pem", ".key", ".p12", ".pfx"}
+
+
+def data_dir() -> Path:
+    """Pilot's per-profile data dir, or a test override."""
+    if _DATA_ROOT is not None:
+        _DATA_ROOT.mkdir(parents=True, exist_ok=True)
+        return _DATA_ROOT
+    try:
+        from plugins.plugin_storage import plugin_data_dir
+
+        return plugin_data_dir(PLUGIN_NAME)
+    except Exception:
+        home = Path(os.environ.get("HERMES_HOME") or (Path.home() / ".hermes"))
+        root = home / "plugin-data" / PLUGIN_NAME
+        root.mkdir(parents=True, exist_ok=True)
+        return root
+
+
+def log_dir() -> Path:
+    path = data_dir() / "logs"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def safe_path(path: str, default_name: str) -> Path:
+    """Resolve a write path and refuse anything outside Pilot's data dir."""
+    root = data_dir().resolve()
+    if path:
+        candidate = Path(path).expanduser()
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        candidate = candidate.resolve()
+    else:
+        candidate = (root / default_name).resolve()
+    if candidate != root and root not in candidate.parents:
+        raise tmux.PilotError(f"path escapes the pilot data directory: {candidate}")
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+    return candidate
+
+
+def _check_upload_source(source: Path) -> None:
+    resolved = source.resolve()
+    home = Path.home()
+    hermes = Path(os.environ.get("HERMES_HOME") or (home / ".hermes"))
+    denied_roots = [
+        hermes,
+        home / ".ssh",
+        home / ".aws",
+        home / ".gnupg",
+        home / ".kube",
+        home / ".docker",
+        home / ".password-store",
+        home / ".local" / "share" / "keyrings",
+        home / ".config" / "gh",
+    ]
+    for root in denied_roots:
+        root = root.resolve()
+        if resolved == root or root in resolved.parents:
+            raise tmux.PilotError(f"refusing to read a credential path: {resolved}")
+    name = resolved.name.lower()
+    if name in _DENIED_NAMES or resolved.suffix.lower() in _DENIED_SUFFIXES:
+        raise tmux.PilotError(f"refusing to read a credential file: {resolved}")
 
 
 def _alive(name: str) -> tmux.SessionInfo:
@@ -212,12 +281,13 @@ def search_screen(
 def log_start(name: str, path: str = "") -> str:
     """Start recording a pane's output to a log file."""
     _alive(name)
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    logs = log_dir()
     if path:
-        dest = LOG_DIR / Path(path).name
+        dest = logs / Path(path).name
     else:
         stamp = time.strftime("%Y%m%d-%H%M%S")
-        dest = LOG_DIR / f"{name}-{stamp}.log"
+        dest = logs / f"{name}-{stamp}.log"
+    dest = safe_path(str(dest), dest.name)
     dest.touch(exist_ok=True)
     command = f"cat >> {shlex.quote(str(dest))}"
     tmux._tmux(["pipe-pane", "-o", "-t", name, command], check=True)
@@ -237,7 +307,7 @@ def log_stop(name: str) -> str:
 def log_read(path: str, tail_bytes: int = 20000) -> dict:
     """Read the tail of a log previously created by log_start."""
     candidate = Path(path).expanduser().resolve()
-    root = LOG_DIR.resolve()
+    root = log_dir().resolve()
     if root not in candidate.parents and candidate.parent != root:
         raise tmux.PilotError("log path must be inside the pilot log directory")
     if not candidate.exists():
@@ -281,7 +351,7 @@ def health() -> dict:
         "socket": tmux.SOCKET,
         "sessions": len(sessions),
         "dead": sum(1 for item in sessions if item.dead),
-        "log_dir": str(LOG_DIR),
+        "log_dir": str(log_dir()),
         "limits": {
             "upload_bytes": UPLOAD_LIMIT,
             "download_bytes": DOWNLOAD_LIMIT,
@@ -314,6 +384,7 @@ def upload_file(
     source = Path(local_path).expanduser()
     if not source.is_file():
         raise tmux.PilotError(f"local file not found: {source}")
+    _check_upload_source(source)
     data = source.read_bytes()
     limit = max(1, min(int(max_bytes), UPLOAD_LIMIT))
     if len(data) > limit:
@@ -390,10 +461,8 @@ def download_file(
         raise tmux.PilotError(f"could not decode remote file: {exc}") from exc
     if len(data) > limit:
         raise tmux.PilotError(f"remote file is {len(data)} bytes; limit is {limit}")
-    destination = Path(local_path).expanduser() if local_path else Path(remote_path).name
-    destination = Path(destination)
-    if destination.parent and not destination.parent.exists():
-        raise tmux.PilotError(f"local directory does not exist: {destination.parent}")
+    default_name = f"pilot-download-{name}-{Path(remote_path).name}"
+    destination = safe_path(local_path, default_name)
     destination.write_bytes(data)
     return {
         "ok": True,
@@ -405,15 +474,17 @@ def download_file(
 
 __all__ = [
     "DOWNLOAD_LIMIT",
-    "LOG_DIR",
     "UPLOAD_LIMIT",
+    "data_dir",
     "download_file",
     "expect",
     "health",
+    "log_dir",
     "log_read",
     "log_start",
     "log_stop",
     "run_once",
+    "safe_path",
     "search_screen",
     "signal_session",
     "upload_file",

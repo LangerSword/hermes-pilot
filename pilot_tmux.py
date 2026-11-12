@@ -24,6 +24,48 @@ DEFAULT_ROWS = 36
 MAX_SCREEN_CHARS = 20_000
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$")
 
+# Panes inherit this, not the agent's environment. Provider keys, adapter
+# tokens and other secrets must never reach a model-authored command.
+_MINIMAL_ENV_KEYS = (
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TERM", "LANG", "TZ",
+    "TMPDIR", "XDG_RUNTIME_DIR", "TMUX_TMPDIR", "PWD",
+)
+
+
+def minimal_env() -> dict[str, str]:
+    """The only environment a pane inherits from Hermes."""
+    env = {key: os.environ[key] for key in _MINIMAL_ENV_KEYS if os.environ.get(key)}
+    for key, value in os.environ.items():
+        if key.startswith("LC_") and len(key) <= 12:
+            env[key] = value
+    env.setdefault("PATH", "/usr/local/bin:/usr/bin:/bin")
+    env.setdefault("HOME", os.path.expanduser("~"))
+    env.setdefault("SHELL", "/bin/sh")
+    env.setdefault("TERM", "xterm-256color")
+    env["TMUX"] = ""  # never inherit an outer client state
+    return env
+
+
+def _allowed_env_key(key: str) -> bool:
+    return key in _MINIMAL_ENV_KEYS or key.startswith("LC_")
+
+
+def _sanitize_server_env() -> None:
+    """Remove inherited secrets from an already-running tmux server."""
+    proc = _tmux(["show-environment", "-g"])
+    if proc.returncode != 0:
+        return
+    for line in proc.stdout.splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        key = raw.split("=", 1)[0].lstrip("-")
+        if key and not _allowed_env_key(key):
+            _tmux(["set-environment", "-g", "-u", key])
+    for key, value in minimal_env().items():
+        if key != "TMUX":
+            _tmux(["set-environment", "-g", key, value])
+
 # Named keys the model may send. Anything else must be plain text.
 NAMED_KEYS = frozenset(
     {
@@ -77,7 +119,7 @@ def _tmux(args: Iterable[str], timeout: float = 15.0, check: bool = False) -> su
             capture_output=True,
             text=True,
             timeout=timeout,
-            env=dict(os.environ, TMUX=""),  # never inherit an outer tmux client state
+            env=minimal_env(),
         )
     except subprocess.TimeoutExpired as exc:
         raise PilotError(f"tmux timed out after {timeout:.0f}s") from exc
@@ -184,6 +226,8 @@ def open_session(
         raise PilotError("open needs a command")
     name = validate_name(name) if name else next_name()
     _ensure_no_duplicate(name)
+    if _server_up():
+        _sanitize_server_env()
     reap_dead()
     cols = max(20, min(int(cols or DEFAULT_COLS), 400))
     rows = max(5, min(int(rows or DEFAULT_ROWS), 200))
@@ -410,6 +454,7 @@ __all__ = [
     "close",
     "close_all",
     "list_sessions",
+    "minimal_env",
     "next_name",
     "open_session",
     "reap_dead",
