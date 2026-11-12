@@ -75,7 +75,7 @@ class PureTest(unittest.TestCase):
     def test_attach_command_is_private(self):
         self.assertEqual(
             cli and tmux.attach_command("s1"),
-            f"tmux -L {tmux.SOCKET} attach -t s1",
+            f"tmux -L {tmux.socket_name()} attach -t s1",
         )
 
     def test_minimal_env_excludes_secrets(self):
@@ -87,6 +87,13 @@ class PureTest(unittest.TestCase):
         self.assertNotIn("PILOT_TEST_SECRET", env)
         self.assertIn("PATH", env)
         self.assertEqual(env.get("TMUX"), "")
+
+    def test_socket_name_is_profile_scoped(self):
+        a = tmux.socket_name("/tmp/hermes-profile-a")
+        b = tmux.socket_name("/tmp/hermes-profile-b")
+        self.assertNotEqual(a, b)
+        self.assertTrue(a.startswith("hermes-pilot-"))
+        self.assertEqual(a, tmux.socket_name("/tmp/hermes-profile-a"))
 
     def test_slash_usage(self):
         self.assertIn("usage", cli.handle_slash("nonsense"))
@@ -236,7 +243,7 @@ class ToolTest(unittest.TestCase):
     def test_open_type_wait_close(self):
         opened = self.call(action="open", command="bash --norc -i", name="tool1", wait_ms=500)
         self.assertTrue(opened["ok"])
-        self.assertIn(f"tmux -L {tmux.SOCKET} attach -t tool1", opened["attach"])
+        self.assertIn(f"tmux -L {tmux.socket_name()} attach -t tool1", opened["attach"])
         typed = self.call(action="type", name="tool1", text="echo TOOL_MARKER")
         self.assertTrue(typed["ok"])
         waited = self.call(action="wait", name="tool1", pattern="TOOL_MARKER", timeout=8)

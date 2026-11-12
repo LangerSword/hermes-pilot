@@ -348,7 +348,7 @@ def health() -> dict:
     return {
         "ok": tmux.available(),
         "tmux": version or "not found",
-        "socket": tmux.SOCKET,
+        "socket": tmux.socket_name(),
         "sessions": len(sessions),
         "dead": sum(1 for item in sessions if item.dead),
         "log_dir": str(log_dir()),

@@ -137,7 +137,7 @@ def handle_cli(args: Any) -> int:
         if tmux.status(name) is None:
             print(f"pilot: no session {name!r}")
             return 1
-        command = ["tmux", "-L", tmux.SOCKET, "attach", "-t", name]
+        command = ["tmux", "-L", tmux.socket_name(), "attach", "-t", name]
         if not sys.stdin.isatty():
             print(" ".join(command))
             return 0

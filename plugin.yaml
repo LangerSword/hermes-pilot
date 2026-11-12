@@ -1,7 +1,7 @@
 name: pilot
 label: Pilot
 kind: standalone
-version: 0.3.1
+version: 0.3.2
 author: Lakshaya Sharma (LangerSword)
 homepage: https://github.com/LangerSword/hermes-pilot
 description: >

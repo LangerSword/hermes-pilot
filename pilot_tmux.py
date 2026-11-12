@@ -20,18 +20,23 @@ from dataclasses import dataclass
 from typing import Iterable
 
 
-def _profile_socket() -> str:
-    try:
-        from hermes_constants import get_hermes_home
+def socket_name(home: str | None = None) -> str:
+    """The private tmux socket for the current profile, resolved per call.
 
-        home = str(get_hermes_home())
-    except Exception:
-        home = os.environ.get("HERMES_HOME") or os.path.expanduser("~/.hermes")
+    Hermes multiplexes profiles in one process, so this must not be cached at
+    import time. ``get_hermes_home()`` is context-local and changes per turn.
+    """
+    if home is None:
+        try:
+            from hermes_constants import get_hermes_home
+
+            home = str(get_hermes_home())
+        except Exception:
+            home = os.environ.get("HERMES_HOME") or os.path.expanduser("~/.hermes")
     digest = hashlib.sha256(os.path.abspath(home).encode()).hexdigest()[:8]
     return f"hermes-pilot-{digest}"
 
 
-SOCKET = _profile_socket()
 DEFAULT_COLS = 120
 DEFAULT_ROWS = 36
 MAX_SCREEN_CHARS = 20_000
@@ -128,7 +133,7 @@ def _tmux(args: Iterable[str], timeout: float = 15.0, check: bool = False) -> su
         raise PilotError("tmux is not installed (pilot needs it for a real TTY)")
     try:
         proc = subprocess.run(
-            ["tmux", "-L", SOCKET, *args],
+            ["tmux", "-L", socket_name(), *args],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -440,7 +445,7 @@ def close_all() -> int:
 
 def attach_command(name: str) -> str:
     """The exact shell command a human runs to watch or take over the pane."""
-    return f"tmux -L {SOCKET} attach -t {validate_name(name)}"
+    return f"tmux -L {socket_name()} attach -t {validate_name(name)}"
 
 
 def rename(name: str, new_name: str) -> str:
@@ -461,7 +466,7 @@ def resize(name: str, cols: int, rows: int) -> None:
 __all__ = [
     "PilotError",
     "SessionInfo",
-    "SOCKET",
+    "socket_name",
     "available",
     "attach_command",
     "close",

@@ -118,12 +118,14 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 - `pilot_snapshot` and `pilot_download` resolve writes under `plugin-data/pilot` and refuse paths that
   escape it. `pilot_upload` refuses sources under the Hermes home, `~/.ssh`, `~/.aws`, `~/.gnupg`,
   key stores and `.env`/key files. Logs live in the same plugin data directory.
+- The plugin has no credential store of its own. Terminal snapshots, pane logs and downloaded files
+  can contain sensitive output and persist under `plugin-data/pilot` when those tools are used.
 
 ## Evidence
 
 | check | command | result |
 |---|---|---|
-| unit tests | `python3 -m unittest discover -s tests` | 54 tests, OK, against real tmux |
+| unit tests | `python3 -m unittest discover -s tests` | 55 tests, OK, against real tmux |
 | admission | `hermes plugins validate .` | validation passed |
 | runtime | `hermes plugins doctor .` | 24 tools, 1 hook registered |
 
@@ -150,9 +152,9 @@ pilot_toolset.py   the 24-tool suite: schemas, wrappers, dispatch
 pilot_features.py  run_once, expect, search, log, transfer, safe paths, health
 pilot_hooks.py     pre_tool_call approval policy for mutating tools
 pilot_cli.py       hermes pilot and /pilot
-tests/             54 stdlib unittest cases (skip cleanly without tmux)
+tests/             55 stdlib unittest cases (skip cleanly without tmux)
 scripts/demo.py    recorded demo: stdin, REPL, vim, fzf, htop
 art/media/         README media: demo gif, site shot, whiteboard
 ```
 
-MIT, Lakshaya Sharma ([@LangerSword](https://github.com/LangerSword)) · v0.3.1.
+MIT, Lakshaya Sharma ([@LangerSword](https://github.com/LangerSword)) · v0.3.2.
