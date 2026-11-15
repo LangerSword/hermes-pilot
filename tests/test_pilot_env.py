@@ -154,6 +154,24 @@ class ExecuteTest(unittest.TestCase):
         self.assertEqual(result["returncode"], 0)
         self.assertIn("fresh-shell", result["output"])
 
+    def test_timeout_recovery_after_close(self):
+        # When a command times out and user follows recommendation to close it,
+        # the next command must not be stuck in BUSY_RC (126).
+        result = self.run_cmd("sleep 5", timeout=1)
+        self.assertEqual(result["returncode"], 124)
+        tmux.close(self.env.name, missing_ok=True)
+        recovered = self.run_cmd("echo recovered")
+        self.assertEqual(recovered["returncode"], 0)
+        self.assertIn("recovered", recovered["output"])
+
+    def test_bad_cwd_preserves_shell(self):
+        result = self.run_cmd("echo nope", cwd="/definitely/not/here")
+        self.assertEqual(result["returncode"], 99)
+        self.assertFalse(tmux.status(self.env.name).dead)
+        followup = self.run_cmd("echo alive")
+        self.assertEqual(followup["returncode"], 0)
+        self.assertIn("alive", followup["output"])
+
 
 @unittest.skipUnless(HAVE_TMUX, "tmux not installed")
 class ReuseTest(unittest.TestCase):

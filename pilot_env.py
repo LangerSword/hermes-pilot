@@ -137,7 +137,9 @@ class PilotEnvironment:
     ) -> dict:
         """Run *command* in the persistent shell and return the terminal-tool result."""
         with self._lock:
-            if self._busy_marker:
+            if not self._alive():
+                self._busy_marker = ""
+            elif self._busy_marker:
                 # A previous command timed out. If it has since finished, take the
                 # new prompt back; otherwise refuse to type into a live program.
                 if self._pending_finished():
@@ -180,7 +182,7 @@ class PilotEnvironment:
             quoted = shlex.quote(os.path.expanduser(cwd))
             cd_line = (
                 f"cd -- {quoted} 2>/dev/null || "
-                f"{{ printf '\\n{marker}__99__%s\\n' \"$PWD\"; exit 99; }}\n"
+                f"{{ printf '\\n{marker}__99__%s\\n' \"$PWD\"; return 99 2>/dev/null || exit 99; }}\n"
             )
         body = (
             f"{cd_line}"
@@ -202,12 +204,12 @@ class PilotEnvironment:
                 self._busy_marker = ""
                 return parsed
             info = tmux.status(self.name)
-            if info is not None and info.dead:
-                # The command exited the shell itself; keep its final screen.
+            if info is None or info.dead:
+                # The command exited the shell itself or the session closed; keep its final screen.
                 self._busy_marker = ""
                 return {
                     "output": self._slice(screen, run_line),
-                    "returncode": info.exit_status if info.exit_status is not None else -1,
+                    "returncode": info.exit_status if (info is not None and info.exit_status is not None) else -1,
                     "cwd_observed": False,
                 }
             if time.monotonic() >= deadline:
@@ -257,10 +259,12 @@ class PilotEnvironment:
         return body.strip("\n")
 
     def _pending_finished(self) -> bool:
+        if not self._alive():
+            return True
         try:
             return self._busy_marker in tmux.screen(self.name, lines=CAPTURE_LINES)
         except tmux.PilotError:
-            return False
+            return True
 
 
 class PilotTerminalProvider(_ProviderBase):
