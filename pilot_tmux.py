@@ -101,6 +101,18 @@ class PilotError(RuntimeError):
     """A user-facing pilot failure (bad name, missing session, no tmux)."""
 
 
+class TmuxTimeout(PilotError):
+    """A tmux command timed out — its effect may or may not have landed."""
+
+
+class DeliveryUncertain(PilotError):
+    """Enter may or may not have reached the shell; completion is unknown.
+
+    Callers must NOT auto-retry the command: it may already be running or
+    have finished, and re-execution could duplicate side effects.
+    """
+
+
 @dataclass(frozen=True)
 class SessionInfo:
     name: str
@@ -140,7 +152,7 @@ def _tmux(args: Iterable[str], timeout: float = 15.0, check: bool = False) -> su
             env=minimal_env(),
         )
     except subprocess.TimeoutExpired as exc:
-        raise PilotError(f"tmux timed out after {timeout:.0f}s") from exc
+        raise TmuxTimeout(f"tmux timed out after {timeout:.0f}s") from exc
     if check and proc.returncode != 0:
         raise PilotError((proc.stderr or proc.stdout or "tmux failed").strip())
     return proc
@@ -336,12 +348,23 @@ def _check_keys(keys: Iterable[str]) -> list[str]:
     return out
 
 
-def send(name: str, text: str = "", keys: Iterable[str] | None = None, enter: bool | None = None) -> str:
+def send(
+    name: str,
+    text: str = "",
+    keys: Iterable[str] | None = None,
+    enter: bool | None = None,
+    capture: bool = True,
+) -> str:
     """Type *text* literally, press named *keys*, then Return.
 
     ``enter=None`` (the default) is auto: text-only sends press Enter,
     key-only sends do not — appending Enter to keys=['Enter'] would
     double-press it. Explicit True/False always wins.
+
+    ``capture=False`` skips the trailing screen read, so a failure can only
+    come from the typing itself. An Enter that times out raises
+    DeliveryUncertain: the key may have landed, so the caller must treat
+    the command's completion as unknown rather than retrying it.
     """
     name = validate_name(name)
     if status(name) is None:
@@ -353,8 +376,11 @@ def send(name: str, text: str = "", keys: Iterable[str] | None = None, enter: bo
     for key in _check_keys(keys or []):
         _tmux(["send-keys", "-t", name, key], check=True)
     if enter:
-        _tmux(["send-keys", "-t", name, "Enter"], check=True)
-    return screen(name, lines=40)
+        try:
+            _tmux(["send-keys", "-t", name, "Enter"], check=True)
+        except TmuxTimeout as exc:
+            raise DeliveryUncertain(str(exc)) from exc
+    return screen(name, lines=40) if capture else ""
 
 
 def wait(
@@ -490,6 +516,8 @@ def resize(name: str, cols: int, rows: int) -> None:
 
 __all__ = [
     "PilotError",
+    "TmuxTimeout",
+    "DeliveryUncertain",
     "SessionInfo",
     "socket_name",
     "available",

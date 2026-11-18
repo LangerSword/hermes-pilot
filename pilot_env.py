@@ -186,17 +186,17 @@ class PilotEnvironment:
             marker = self._busy_marker
             try:
                 try:
-                    tmux.send(self.name, text=run_line, enter=True)
+                    self._deliver(run_line, marker)
+                except tmux.DeliveryUncertain:
+                    # Enter may have landed: the command could be running or
+                    # done. Re-executing could duplicate side effects.
+                    return self._indeterminate()
+                try:
                     result = self._wait(run_line, timeout)
                 except tmux.PilotError:
-                    # The session vanished mid-call (external close/killall,
-                    # tmux restart). Recreate once and retry instead of
-                    # failing the tool call; a second failure propagates.
-                    self._busy_marker = ""
-                    self._start()
-                    self._busy_marker = marker
-                    tmux.send(self.name, text=run_line, enter=True)
-                    result = self._wait(run_line, timeout)
+                    # Session lost AFTER delivery — same rule: never re-run a
+                    # command that may already have executed.
+                    return self._indeterminate()
                 if result.get("cwd_observed") and result.get("cwd"):
                     self.cwd = result["cwd"]
                 return result
@@ -206,6 +206,39 @@ class PilotEnvironment:
                     script.parent.rmdir()
                 except OSError:
                     pass
+
+    def _deliver(self, run_line: str, marker: str) -> None:
+        """Type the run line and press Enter, with one safe retry.
+
+        A failure before Enter is confirmed (missing session, rejected or
+        timed-out text send) means nothing executed; recreating the shell
+        wipes any partial input, so delivering once more is safe. An Enter
+        timeout raises DeliveryUncertain and must not be retried.
+        """
+        try:
+            tmux.send(self.name, text=run_line, enter=True, capture=False)
+        except tmux.DeliveryUncertain:
+            raise
+        except tmux.PilotError:
+            self._busy_marker = ""
+            self._start()
+            self._busy_marker = marker
+            tmux.send(self.name, text=run_line, enter=True, capture=False)
+
+    def _indeterminate(self) -> dict:
+        self._busy_marker = ""
+        return {
+            "output": (
+                f"[pilot] session {self.name} was lost after the command was delivered. "
+                f"It may have run partially or fully and was NOT retried — re-running "
+                f"could duplicate side effects. Check the effects, then re-run "
+                f"deliberately if needed."
+            ),
+            "returncode": -1,
+            "cwd_observed": False,
+            "pilot_indeterminate": True,
+            "pilot_session": self.name,
+        }
 
     def _write_script(self, command: str, cwd: str | None) -> tuple[str, Path]:
         token = uuid.uuid4().hex[:10]

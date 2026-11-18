@@ -86,7 +86,9 @@ tmux shell instead of a pipe:
   receives your next echo — and once that program finishes, the following call recovers on its own;
 - output is bounded to the last 20K characters of the pane: a long build never dumps stale scrollback
   into the model, and the completion marker at the tail always survives the trim;
-- if the session is closed or killed mid-call, the shell is recreated once and the command retried.
+- if the session is lost **before** the command is delivered, the shell is recreated once and the
+  command retried; loss **after** delivery is reported as indeterminate (`pilot_indeterminate`,
+  `exit -1`) and never auto-retried, so non-idempotent commands (`rm`, `mv`, deploys) are not duplicated.
 
 Long-running servers belong in `pilot_open` sessions: they outlive terminal calls, while jobs started
 inside the terminal shell end when that session is cleaned up.
@@ -134,14 +136,15 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 
 | check | command | result |
 |---|---|---|
-| unit tests | `python3 -m unittest discover -s tests` | 79 tests, OK, against real tmux |
+| unit tests | `python3 -m unittest discover -s tests` | 84 tests, OK, against real tmux |
 | admission | `hermes plugins validate .` | validation passed |
 | runtime | `hermes plugins doctor .` | 24 tools, 1 hook registered |
 
 The suite covers stdin, REPL, vim keystrokes, fzf, exit status, dead-pane reaping, large-output
-completion, timeout recovery, session-loss recovery, shared busy state, killall scoping and the
-send Enter contract. Every test module rides a private tmux socket (`HERMES_HOME` isolation), so the
-suite never touches live sessions. `scripts/demo.py` runs the same flow on camera.
+completion, timeout recovery, session-loss recovery safety (no re-execution after delivery),
+shared busy state, killall scoping and the send Enter contract. Every test module rides a private
+tmux socket (`HERMES_HOME` isolation), so the suite never touches live sessions. `scripts/demo.py`
+runs the same flow on camera.
 
 ## Stack
 
