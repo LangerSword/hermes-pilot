@@ -93,6 +93,11 @@ def setup_cli(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("name", nargs="?", default="", help="Session name, or on/off/status for backend")
     parser.add_argument("--lines", type=int, default=60, help="Scrollback lines for screen")
+    parser.add_argument(
+        "--include-terminal",
+        action="store_true",
+        help="killall: also close terminal-backend shells (term-*), dropping live tasks' state",
+    )
     parser.set_defaults(func=handle_cli)
 
 
@@ -153,7 +158,7 @@ def handle_cli(args: Any) -> int:
         return 0 if ok else 1
 
     if action == "killall":
-        count = tmux.close_all()
+        count = tmux.close_all(include_terminal=bool(getattr(args, "include_terminal", False)))
         print(f"pilot: closed {count} session(s)")
         return 0
 

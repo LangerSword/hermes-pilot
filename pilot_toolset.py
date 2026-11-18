@@ -118,8 +118,15 @@ def _close(args: dict) -> str:
     return _core("close", {"name": "name"})(args)
 
 
-def _killall(_args: dict) -> str:
-    return _json({"ok": True, "closed": tmux.close_all()})
+def _killall(args: dict) -> str:
+    include_terminal = bool(args.get("include_terminal", False))
+    return _json(
+        {
+            "ok": True,
+            "closed": tmux.close_all(include_terminal=include_terminal),
+            "include_terminal": include_terminal,
+        }
+    )
 
 
 # ── advanced handlers ────────────────────────────────────────────────────
@@ -347,8 +354,17 @@ TOOL_SPECS: list[dict] = [
     },
     {
         "name": "pilot_killall",
-        "description": "Close every Pilot session.",
-        "schema": _schema("pilot_killall", "Close every Pilot session.", {}),
+        "description": "Close pilot tool sessions. Terminal-backend shells (term-*) are preserved — they belong to live Hermes tasks; pass include_terminal=true for a full reset.",
+        "schema": _schema(
+            "pilot_killall",
+            "Close pilot tool sessions; terminal-backend shells (term-*) survive unless include_terminal=true.",
+            {
+                "include_terminal": {
+                    "type": "boolean",
+                    "description": "Also close terminal-backend shells (term-*), dropping live tasks' shell state. Default false.",
+                }
+            },
+        ),
         "handler": _guard(lambda args: json.loads(_killall(args))),
     },
     {

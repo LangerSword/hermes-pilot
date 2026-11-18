@@ -443,11 +443,22 @@ def close(name: str, *, missing_ok: bool = True) -> bool:
     return True
 
 
-def close_all() -> int:
-    sessions = list_sessions()
-    for info in sessions:
-        close(info.name)
-    return len(sessions)
+def close_all(include_terminal: bool = False) -> int:
+    """Close pilot sessions on this profile's socket.
+
+    Terminal-backend shells (``term-*``, see pilot_env.SESSION_PREFIX) belong
+    to live Hermes tasks and survive by default: the socket is shared by every
+    concurrent task, so a blanket kill drops other tasks' shell state and
+    running programs mid-command. ``include_terminal=True`` is an explicit
+    full reset.
+    """
+    closed = 0
+    for info in list_sessions():
+        if not include_terminal and info.name.startswith("term-"):
+            continue
+        if close(info.name):
+            closed += 1
+    return closed
 
 
 def attach_command(name: str) -> str:
