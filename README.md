@@ -82,7 +82,14 @@ tmux shell instead of a pipe:
 - `cd`, exports and aliases survive across calls and turns;
 - `TERM=tmux-256color` and a real `/dev/pts`, so pagers and curses work;
 - a timed-out command returns `exit 124` and is left running; `pilot screen` and `pilot type` can inspect it;
-- the next call refuses to type into a running program (`exit 126`), so a REPL never receives your next echo.
+- the next call refuses to type into a running program (`exit 126`, `pilot_busy: true`), so a REPL never
+  receives your next echo — and once that program finishes, the following call recovers on its own;
+- output is bounded to the last 20K characters of the pane: a long build never dumps stale scrollback
+  into the model, and the completion marker at the tail always survives the trim;
+- if the session is closed or killed mid-call, the shell is recreated once and the command retried.
+
+Long-running servers belong in `pilot_open` sessions: they outlive terminal calls, while jobs started
+inside the terminal shell end when that session is cleaned up.
 
 Restart once from outside the agent with `hermes gateway restart`. Turn it off with `hermes pilot backend off`.
 
@@ -93,7 +100,8 @@ git clone https://github.com/LangerSword/hermes-pilot ~/.hermes/plugins/pilot
 hermes plugins enable pilot
 hermes pilot list            # sessions, pids, attach commands
 hermes pilot attach live1    # Ctrl-b d to detach
-hermes pilot killall
+hermes pilot killall         # closes tool sessions; live terminal-backend shells survive
+hermes pilot killall --include-terminal   # explicit full reset
 ```
 
 Needs `tmux` 3.x on PATH. No Python dependencies. The `pilot` tool appears in the next session.
@@ -103,7 +111,8 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 
 - Text, not pixels: it reads the terminal grid, so GUI apps are out.
 - Full-screen programs redraw. `wait` for a pattern before treating the screen as final.
-- An unclosed session keeps running; `hermes pilot killall` cleans up.
+- An unclosed session keeps running; `hermes pilot killall` cleans up tool sessions. Terminal-backend
+  shells (`term-*`) belong to live tasks and survive killall unless `--include-terminal` is passed.
 - It adds a TTY, not privilege: the agent could already run commands as you.
 
 ## Safety
@@ -125,12 +134,14 @@ Backend switching needs a restart and `plugins.isolation: in_process` (the defau
 
 | check | command | result |
 |---|---|---|
-| unit tests | `python3 -m unittest discover -s tests` | 55 tests, OK, against real tmux |
+| unit tests | `python3 -m unittest discover -s tests` | 79 tests, OK, against real tmux |
 | admission | `hermes plugins validate .` | validation passed |
 | runtime | `hermes plugins doctor .` | 24 tools, 1 hook registered |
 
-The suite covers stdin, REPL, vim keystrokes, fzf, exit status and dead-pane reaping. `scripts/demo.py`
-runs the same flow on camera.
+The suite covers stdin, REPL, vim keystrokes, fzf, exit status, dead-pane reaping, large-output
+completion, timeout recovery, session-loss recovery, shared busy state, killall scoping and the
+send Enter contract. Every test module rides a private tmux socket (`HERMES_HOME` isolation), so the
+suite never touches live sessions. `scripts/demo.py` runs the same flow on camera.
 
 ## Stack
 
