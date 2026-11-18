@@ -171,6 +171,8 @@ class PilotEnvironment:
                         ),
                         "returncode": BUSY_RC,
                         "cwd_observed": False,
+                        "pilot_busy": True,
+                        "pilot_session": self.name,
                     }
 
             try:

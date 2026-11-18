@@ -68,6 +68,13 @@ class SharedBusyTest(unittest.TestCase):
         self.assertEqual(recovered["returncode"], 0)
         self.assertIn("recovered-via-b", recovered["output"])
 
+    def test_busy_result_is_structured(self):
+        self.a.execute("sleep 5", timeout=1)
+        busy = self.b.execute("echo nope")
+        self.assertEqual(busy["returncode"], pilot_env.BUSY_RC)
+        self.assertTrue(busy.get("pilot_busy"))
+        self.assertEqual(busy.get("pilot_session"), self.a.name)
+
     def test_cleanup_clears_shared_busy_state(self):
         self.a.execute("sleep 5", timeout=1)
         self.a.cleanup()
