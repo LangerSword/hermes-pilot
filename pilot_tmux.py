@@ -287,7 +287,14 @@ def _ensure_no_duplicate(name: str) -> None:
 
 
 def trim_screen(text: str, max_chars: int = MAX_SCREEN_CHARS) -> str:
-    """Strip trailing spaces, dead-pane banners, and leading/trailing blank lines."""
+    """Strip trailing spaces, dead-pane banners, and leading/trailing blank lines.
+
+    Over-long captures keep the TAIL, never the head: the completion marker
+    and the live prompt sit at the bottom of the pane, while the head is stale
+    scrollback. Head-truncation chopped the marker, so a finished command read
+    as a false timeout and the session stayed busy forever (#157099); it also
+    leaked unrelated old commands into tool results.
+    """
     lines = []
     for line in (text or "").replace("\r", "").splitlines():
         cleaned = line.rstrip()
@@ -300,7 +307,7 @@ def trim_screen(text: str, max_chars: int = MAX_SCREEN_CHARS) -> str:
         lines.pop()
     body = "\n".join(lines)
     if len(body) > max_chars:
-        body = body[:max_chars] + "\n… [screen truncated]"
+        body = "… [screen truncated — keeping tail]\n" + body[-max_chars:]
     return body
 
 

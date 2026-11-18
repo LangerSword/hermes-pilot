@@ -69,8 +69,12 @@ class PureTest(unittest.TestCase):
         self.assertEqual(tmux.trim_screen(raw), "  hello\nworld")
 
     def test_trim_screen_caps(self):
-        out = tmux.trim_screen("x" * 50, max_chars=10)
-        self.assertTrue(out.endswith("[screen truncated]"))
+        # Over-long captures keep the TAIL (the completion marker and live
+        # output sit there); the head is stale scrollback (#157099).
+        out = tmux.trim_screen("HEAD" + ("x" * 50) + "TAIL", max_chars=10)
+        self.assertIn("[screen truncated — keeping tail]", out)
+        self.assertTrue(out.endswith("xxxxxxTAIL"))
+        self.assertNotIn("HEAD", out)
 
     def test_attach_command_is_private(self):
         self.assertEqual(
