@@ -45,6 +45,11 @@ BUSY_RC = 126
 
 _LOCKS: dict[str, threading.Lock] = {}
 _LOCKS_GUARD = threading.Lock()
+# Busy markers belong to the SESSION, not one environment instance: Hermes
+# can hold several PilotEnvironment objects for one task (terminal tool,
+# execute_code sandbox), and a fresh instance must not type into a pane where
+# another instance's command is still running.
+_BUSY_MARKERS: dict[str, str] = {}
 
 
 def _lock_for(name: str) -> threading.Lock:
@@ -76,12 +81,24 @@ class PilotEnvironment:
         self.task_id = task_id or "default"
         self.name = session_name(self.task_id)
         self._lock = _lock_for(self.name)
-        self._busy_marker: str = ""
         # File-tool duck typing: some file operations read the environment's
         # export map and host-mount hints.
         self.env: dict[str, str] = {}
         self.host_cwd = None
         self.host_cwd_mount = None
+
+    @property
+    def _busy_marker(self) -> str:
+        with _LOCKS_GUARD:
+            return _BUSY_MARKERS.get(self.name, "")
+
+    @_busy_marker.setter
+    def _busy_marker(self, value: str) -> None:
+        with _LOCKS_GUARD:
+            if value:
+                _BUSY_MARKERS[self.name] = value
+            else:
+                _BUSY_MARKERS.pop(self.name, None)
 
     # ── lifecycle ──────────────────────────────────────────────────────
     def _alive(self) -> bool:
