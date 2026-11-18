@@ -10,12 +10,19 @@ Run: python3 -m unittest discover -s tests -v
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import sys
+import tempfile
 import time
 import unittest
 import uuid
 from pathlib import Path
+
+# Isolate the tmux socket: socket_name() digests HERMES_HOME, and these tests
+# call close_all() — on the live profile socket that kills every concurrent
+# Hermes task's terminal session, including the backend running the suite.
+os.environ["HERMES_HOME"] = tempfile.mkdtemp(prefix="pilot-test-home.")
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT.parent) not in sys.path:
