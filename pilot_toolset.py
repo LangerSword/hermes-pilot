@@ -261,7 +261,7 @@ def _send(args: dict) -> dict:
         str(args.get("name") or ""),
         text=str(args.get("text") or ""),
         keys=args.get("keys") or [],
-        enter=bool(args.get("enter", True)),
+        enter=args.get("enter"),
     )
     result = {"ok": True, "name": args.get("name"), "screen": screen}
     if args.get("wait_for"):
@@ -544,7 +544,10 @@ TOOL_SPECS: list[dict] = [
                 "name": {"type": "string"},
                 "text": {"type": "string"},
                 "keys": {"type": "array", "items": {"type": "string"}},
-                "enter": {"type": "boolean"},
+                "enter": {
+                    "type": "boolean",
+                    "description": "Press Enter after text/keys. Auto by default: true for text-only sends, false when keys are given. Explicit true/false overrides.",
+                },
                 "wait_for": {"type": "string"},
                 "timeout": {"type": "number"},
                 "lines": {"type": "integer"},

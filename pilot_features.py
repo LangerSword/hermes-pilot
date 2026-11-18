@@ -207,7 +207,7 @@ def expect(
                 name,
                 text=text,
                 keys=keys,
-                enter=bool(step.get("enter", True)),
+                enter=step.get("enter"),
             )
             trace.append(
                 {"step": index, "action": "type", "text": text[:80], "keys": list(keys)}

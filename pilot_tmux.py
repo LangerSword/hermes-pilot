@@ -336,11 +336,18 @@ def _check_keys(keys: Iterable[str]) -> list[str]:
     return out
 
 
-def send(name: str, text: str = "", keys: Iterable[str] | None = None, enter: bool = True) -> str:
-    """Type *text* literally, press named *keys*, then Return by default."""
+def send(name: str, text: str = "", keys: Iterable[str] | None = None, enter: bool | None = None) -> str:
+    """Type *text* literally, press named *keys*, then Return.
+
+    ``enter=None`` (the default) is auto: text-only sends press Enter,
+    key-only sends do not — appending Enter to keys=['Enter'] would
+    double-press it. Explicit True/False always wins.
+    """
     name = validate_name(name)
     if status(name) is None:
         raise PilotError(f"no pilot session named {name!r}")
+    if enter is None:
+        enter = not keys
     if text:
         _tmux(["send-keys", "-t", name, "-l", "--", text], check=True)
     for key in _check_keys(keys or []):

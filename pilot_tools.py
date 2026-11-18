@@ -71,7 +71,7 @@ _SCHEMA = {
             },
             "enter": {
                 "type": "boolean",
-                "description": "For action='type': press Enter after text/keys (default true). Set false when typing inside vim insert mode.",
+                "description": "For action='type': press Enter after text/keys. Auto by default: true for text-only sends, false when keys are given (keys=['Enter'] already presses it). Set explicitly to override, e.g. false inside vim insert mode.",
             },
             "pattern": {
                 "type": "string",
@@ -149,7 +149,7 @@ def handle(args: dict) -> str:
                 name,
                 text=str(args.get("text") or ""),
                 keys=args.get("keys") or [],
-                enter=bool(args.get("enter", True)),
+                enter=args.get("enter"),
             )
             return _json({"ok": True, "name": name, "screen": _cap(text)})
 
