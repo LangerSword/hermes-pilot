@@ -156,12 +156,28 @@ class PilotEnvironment:
                         "cwd_observed": False,
                     }
 
-            self._start()
+            try:
+                self._start()
+            except tmux.PilotError:
+                # Creation raced an external close (killall, tmux restart);
+                # the killer is gone by now — try once more.
+                self._start()
             timeout = float(timeout or self.timeout)
             run_line, script = self._write_script(command, cwd)
+            marker = self._busy_marker
             try:
-                tmux.send(self.name, text=run_line, enter=True)
-                result = self._wait(run_line, timeout)
+                try:
+                    tmux.send(self.name, text=run_line, enter=True)
+                    result = self._wait(run_line, timeout)
+                except tmux.PilotError:
+                    # The session vanished mid-call (external close/killall,
+                    # tmux restart). Recreate once and retry instead of
+                    # failing the tool call; a second failure propagates.
+                    self._busy_marker = ""
+                    self._start()
+                    self._busy_marker = marker
+                    tmux.send(self.name, text=run_line, enter=True)
+                    result = self._wait(run_line, timeout)
                 if result.get("cwd_observed") and result.get("cwd"):
                     self.cwd = result["cwd"]
                 return result
@@ -231,6 +247,8 @@ class PilotEnvironment:
 
     def _parse(self, screen: str, run_line: str) -> dict | None:
         marker = self._busy_marker
+        if not marker:
+            return None
         at = screen.rfind(marker)
         if at == -1:
             return None

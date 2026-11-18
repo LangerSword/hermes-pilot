@@ -171,6 +171,21 @@ class ExecuteTest(unittest.TestCase):
         self.assertEqual(recovered["returncode"], 0)
         self.assertIn("recovered", recovered["output"])
 
+    def test_session_killed_midcall_recovers(self):
+        # An external close/killall (or tmux restart) can drop the session
+        # while a command runs. The call must recreate the shell and finish
+        # instead of raising "no pilot session named".
+        import threading
+
+        killer = threading.Timer(0.4, lambda: tmux.close(self.env.name, missing_ok=True))
+        killer.start()
+        try:
+            result = self.run_cmd("sleep 1; echo survived", timeout=15)
+        finally:
+            killer.cancel()
+        self.assertEqual(result["returncode"], 0)
+        self.assertIn("survived", result["output"])
+
     def test_bad_cwd_preserves_shell(self):
         result = self.run_cmd("echo nope", cwd="/definitely/not/here")
         self.assertEqual(result["returncode"], 99)
